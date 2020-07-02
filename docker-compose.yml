@@ -1,0 +1,100 @@
+version: '3.6'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.4.2
+    container_name: elasticsearch
+    ports: ['9200:9200']
+    networks: ['stack']
+    environment:
+            - node.name=es01
+            - cluster.name=es-docker-cluster
+            - discovery.type=single-node
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.4.2
+    container_name: kibana
+    ports: ['5601:5601']
+    networks: ['stack']
+    depends_on: ['elasticsearch']
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.4.2
+    container_name: logstash
+    ports: ['5044:5044']
+    volumes:
+      - '/home/appmin/elastic-stack-support/logstash/config/logstash.conf/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:rw'
+    networks: ['stack']
+    depends_on: ['elasticsearch']
+
+  #filebeat:
+    #image: docker.elastic.co/beats/filebeat:${TAG}
+    #container_name: filebeat
+    #command: filebeat -e -strict.perms=false 
+    #volumes:
+      #- '/home/appmin/elastic-stack-support/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:rw'
+    #networks: ['stack']
+    #depends_on: ['elasticsearch']
+  
+  prometheus:
+    image: prom/prometheus:v2.15.1
+    container_name: prometheus
+    ports: ['9090:9090']
+    volumes:
+      - '/home/appmin/elastic-stack-support/prometheus/:/etc/prometheus/:rw'
+    networks: ['stack']
+    depends_on: ['elasticsearch']
+
+  node-exporter:
+    image: prom/node-exporter
+    container_name: node-exporter
+    ports: ['9100:9100']
+    volumes:
+      - '/home/appmin/elastic-stack-support/node-exporter/:/etc/node_exporter/:rw'
+    networks: ['stack']
+    depends_on: ['prometheus']
+
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    ports: ['9093:9093']
+    volumes:
+      - '/home/appmin/elastic-stack-support/alertmanager/:/etc/alertmanager/:rw'
+    networks: ['stack']
+    depends_on: ['prometheus']
+
+  cadvisor:
+    image: google/cadvisor
+    container_name: cadvisor
+    ports: ['8080:8080']
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks: ['stack']
+    depends_on: ['prometheus']
+
+  grafana:
+    image: grafana/grafana:6.5.2
+    container_name: grafana
+    ports: ['3000:3000']
+    volumes:
+      - 'grafana-storage:/var/lib/grafana:rw'
+    networks: ['stack']
+    depends_on: ['elasticsearch']
+
+  Container_Exporter:
+    image: prom/container-exporter
+    container_name: Container_Exporter
+    ports: ['9104:9104']
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock prom/container-exporter:rw'
+    networks: ['stack']
+    depends_on: ['prometheus']
+
+networks: {stack: }
+volumes:
+  es_data:
+  grafana-storage:
+
